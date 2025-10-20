@@ -1,0 +1,366 @@
+# Default values for authentication.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+# Enable debugging
+debug:
+  enabled: false
+  cmd_arg:
+    enabled: false
+    command: '["/bin/sh"]'
+    args: '["-c", "while true; do echo hello > /tmp/hello; sleep 10;done"]'
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  registry: docker.io
+  repository: nginx
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# This is for the secretes for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets:
+  - name: "ss-core-registry"
+# This is to override the chart name.
+nameOverride: "authentication2"
+fullnameOverride: "authentication"
+
+# Use secrets for exposing EnvVars
+extraEnvVarsSecret: true
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+  # Setup RBAC for secrets management (DEPRECATED - use rbac.role instead)
+  workspacePerms: false
+  extraRules: {}
+
+# RBAC configuration
+# For more information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+rbac:
+  # Enable RBAC resources
+  enabled: false
+
+  # ClusterRole configuration
+  clusterRole:
+    enabled: false
+    annotations: {}
+    labels: {}
+    # Define rules for cluster-wide permissions
+    rules: []
+    # Example rules:
+    # - apiGroups: [""]
+    #   resources: ["pods"]
+    #   verbs: ["get", "list", "watch"]
+    # - apiGroups: ["apps"]
+    #   resources: ["deployments"]
+    #   verbs: ["get", "list"]
+
+  # Role configuration (namespace-scoped)
+  role:
+    enabled: false
+    annotations: {}
+    labels: {}
+    # Define rules for namespace-scoped permissions
+    rules: []
+    # Example rules:
+    # - apiGroups: [""]
+    #   resources: ["secrets"]
+    #   verbs: ["get", "list", "create", "update", "delete"]
+    # - apiGroups: [""]
+    #   resources: ["configmaps"]
+    #   verbs: ["get", "list"]
+
+  # ClusterRoleBinding configuration
+  clusterRoleBinding:
+    enabled: false
+    annotations: {}
+    labels: {}
+    # Reference to the ClusterRole to bind (defaults to the generated ClusterRole name)
+    # Set this to use an existing ClusterRole
+    roleRef: ""
+
+  # RoleBinding configuration
+  roleBinding:
+    enabled: false
+    annotations: {}
+    labels: {}
+    # Reference to the Role to bind (defaults to the generated Role name)
+    # Set this to use an existing Role
+    roleRef: ""
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations:
+  ss-validated: "true"
+# https://docs.dapr.io/reference/arguments-annotations-overview/
+
+dapr:
+  enabled: false
+  secret_name: dapr-api-token
+  dapr_api_token: 'change-me'
+  app_port: "3000"
+  config: "daprsystem"
+  log_as_json: "false"
+  log_level: "info"
+  secret_name: "dapr-api-token"
+  app_health_probe_interval: "60"
+  app_health_probe_timeout: "1000"
+  app_health_threshold: "10"
+  app_health_check: true
+  app_health_check_path: "/healthz"
+
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+metrics:
+  ## @param metrics.enabled Start metrics
+  ##
+  enabled: true
+  ## Prometheus Service Monitor
+  ## ref: https://github.com/coreos/prometheus-operator
+  ##      https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+  ##
+  ## @param metrics.podAnnotations [object] Annotations for cert-manager exporter pods
+  ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+  ##
+  podAnnotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.controller.containerPorts.http }}"
+  ## Prometheus Operator ServiceMonitor resource
+  ##
+  serviceMonitor:
+    ## @param metrics.serviceMonitor.path The path which the ServiceMonitor will monitor
+    ##
+    path: /metrics
+    ## @param metrics.serviceMonitor.targetPort The port in which the ServiceMonitor will monitor
+    ##
+    targetPort: 3000
+    ## @param metrics.serviceMonitor.enabled Create ServiceMonitor Resource for scraping metrics using PrometheusOperator
+    ##
+    enabled: false
+    ## @param metrics.serviceMonitor.namespace Namespace which Prometheus is running in
+    ## e.g:
+    ## namespace: monitoring
+    ##
+    namespace: ""
+    ## @param metrics.serviceMonitor.jobLabel The name of the label on the target service to use as the job name in prometheus.
+    ##
+    jobLabel: ""
+    ## @param metrics.serviceMonitor.interval Interval at which metrics should be scraped
+    ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
+    ##
+    interval: 60s
+    ## @param metrics.serviceMonitor.scrapeTimeout Timeout after which the scrape is ended
+    ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
+    ##
+    scrapeTimeout: 30s
+    ## @param metrics.serviceMonitor.relabelings RelabelConfigs to apply to samples before scraping
+    ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#relabelconfig
+    ##
+    relabelings: []
+    ## @param metrics.serviceMonitor.metricRelabelings MetricRelabelConfigs to apply to samples before ingestion
+    ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#relabelconfig
+    ##
+    metricRelabelings: []
+    ## @param metrics.serviceMonitor.selector ServiceMonitor selector labels
+    ## ref: https://github.com/bitnami/charts/tree/main/bitnami/prometheus-operator#prometheus-configuration
+    ##
+    ## selector:
+    ##   prometheus: my-prometheus
+    ##
+    selector: {}
+    ## @param metrics.serviceMonitor.labels Extra labels for the ServiceMonitor
+    ##
+    labels: {}
+    ## @param metrics.serviceMonitor.additionalLabels DEPRECATED. Use metrics.serviceMonitor.labels instead.
+    ##
+    additionalLabels: {}
+    ## @param metrics.serviceMonitor.honorLabels honorLabels chooses the metric's labels on collisions with target labels
+    ##
+    honorLabels: false
+
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+  port: 3000
+
+# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+ingress:
+  enabled: true
+  className: "ingress-nginx-private"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+#    cpu: 100m
+    memory: 512Mi
+  requests:
+#    cpu: 100m
+    memory: 128Mi
+
+# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+livenessProbe:
+  tcpSocket:
+    port: 3000
+#  httpGet:
+#    path: /
+#    port: 3000
+readinessProbe:
+  tcpSocket:
+    port: 3000
+#  httpGet:
+#    path: /
+#    port: 3000
+
+# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: #[]
+- name: varlog
+  emptyDir: {}
+- name: podinfo
+  downwardAPI:
+    items:
+      - path: "labels"
+        fieldRef:
+          fieldPath: metadata.labels
+      - path: "annotations"
+        fieldRef:
+          fieldPath: metadata.annotations
+
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: # []
+- name: varlog
+  mountPath: "/root/.npm"
+- name: podinfo
+  mountPath: /etc/podinfo
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# 
+persistentVolumeClaim:
+  enabled: false
+  accessMode: "ReadWriteOnce"  # Can be ReadWriteOnce, ReadOnlyMany, or ReadWriteMany
+  storage: "5Gi"               # Define the storage size required
+  storageClassName: "standard" # Define the storage class name, or leave empty for default
+
+# https://kubernetes.io/docs/tasks/run-application/configure-pdb/#identify-an-application-to-protect
+# https://kubernetes.io/docs/reference/kubernetes-api/policy-resources/pod-disruption-budget-v1/
+podDisruptionBudget:
+  minAvailable: 1          # Minimum number of pods that should remain available
+  maxUnavailable: 1        # Maximum number of pods that can be unavailable at a time
+
+argorollout:
+  enabled: false
+  strategy:
+    canary:
+      analysis:
+        templateName: success-rate
+        args:
+        - name: ingress
+          value: canary-demo
+      canaryService: canary-demo-preview
+      steps:
+      - setWeight: 40
+      - pause: {}
+      - setWeight: 60
+      - pause:
+          duration: 10
+      - setWeight: 80
+      - pause:
+          duration: 10
+
+job:
+  enabled: false
+  restartPolicy: OnFailure
+  backoffLimit: 3
+
+
+vpa:
+  enabled: false
+
+# This will create a secret of same name as extSecret
+extSecret:
+  enabled: false
+  dataKey: /dev/config
+  dataProperty: nested
+  refreshInterval: 15s
+  secretStoreName: hashcorpVault
+  secretStoreKind: SecretStore
+
+# ConfigMap configuration
+# This will create a ConfigMap and automatically inject it as environment variables
+configmap:
+  enabled: false
+  data: {}
+    # Example:
+    # APP_ENV: "production"
+    # LOG_LEVEL: "info"
+    # config.json: |
+    #   {
+    #     "feature": "enabled"
+    #   }
+
+test:
+  enabled: false
